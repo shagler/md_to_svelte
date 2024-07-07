@@ -1,0 +1,11 @@
+[package]
+name = "md_to_svelte"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+walkdir = "2.3"
+pulldown-cmark = "0.9"
+regex = "1.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
