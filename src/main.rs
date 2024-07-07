@@ -3,6 +3,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::path::Path;
 use walkdir::WalkDir;
+use serde_json::json;
 
 #[derive(Deserialize)]
 struct FrontMatter {
@@ -14,11 +15,13 @@ struct FrontMatter {
 fn main() {
   let input_dir = Path::new("data/articles");
   let output_dir = Path::new("src/routes/articles");
+  let static_dir = Path::new("static/images/articles");
   for entry in WalkDir::new(input_dir).into_iter().filter_map(|e| e.ok()) {
     if entry.path().extension().map_or(false, |ext| ext == "md") {
       let input_path = entry.path();
       let relative_path = input_path.strip_prefix(input_dir).unwrap();
-      let output_path = output_dir.join(relative_path).with_extension("svelte");
+      let file_stem = relative_path.file_stem().unwrap().to_str().unwrap();
+      let output_path = output_dir.join(file_stem).join("+page.svelte");
 
       let content = std::fs::read_to_string(input_path).unwrap();
       let (frontmatter, markdown) = extract_frontmatter(&content);
@@ -29,6 +32,27 @@ fn main() {
       std::fs::write(output_path, svelte_content).unwrap();
     }
   }
+
+  let input_images = input_dir.join("images");
+  if input_images.exists() {
+    std::fs::create_dir_all(static_dir).unwrap();
+    copy_dir_all(input_images, static_dir).unwrap();
+  }
+}
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+  std::fs::create_dir_all(&dst)?;
+  for entry in std::fs::read_dir(src)? {
+    let entry = entry?;
+    let ty = entry.file_type()?;
+    if ty.is_dir() {
+      copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+    }
+    else {
+      std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+    }
+  }
+  Ok(())
 }
 
 fn extract_frontmatter(content: &str) -> (FrontMatter, String) {
@@ -49,13 +73,20 @@ fn markdown_to_html(markdown: &str) -> String {
 }
 
 fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> String {
+  let tags_json = serde_json::to_string(&frontmatter.tags).unwrap();
+  let content_json = json!(html_content.replace("src=\"images/", "src=\"/images/articles/"));
+
   format!(
-          r#"<script lang="ts">
+          r#"<script context="module">
+    export const title = "{}";
+    export const date = "{}";
+    export const tags = {};
+  </script>
+
+  <script lang="ts">
     import {{ onMount }} from 'svelte';
 
-    let title = "{}";
-    let date = "{}";
-    let tags = {};
+    let content = {};
 
     onMount(() => {{
       // Add any client-side logic here
@@ -71,7 +102,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
       {{/each}}
     </div>
     <div class="content">
-      {}
+      {{@html content}}
     </div>
   </article>
 
@@ -80,7 +111,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
   </style>"#,
     frontmatter.title,
     frontmatter.date,
-    serde_yaml::to_string(&frontmatter.tags).unwrap(),
-    html_content
+    tags_json,
+    content_json
   )
 }
