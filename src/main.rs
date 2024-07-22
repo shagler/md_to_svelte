@@ -5,7 +5,7 @@ use std::path::Path;
 use walkdir::WalkDir;
 use serde_json::json;
 use chrono::NaiveDate;
-use base64;
+use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Deserialize)]
 struct FrontMatter {
@@ -80,7 +80,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
   let formatted_date = date.format("%B %d, %Y").to_string();
 
   let content_json = json!(html_content.replace("src=\"images/", "src=\"/images/articles/"));
-  let profile_image_svg = include_str!("static/profile_image.svg");
+  let profile_image = include_str!("static/profile_image.svg");
 
   format!(
     r#"<script>
@@ -103,7 +103,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
 
       <div class="meta mb-8">
         <div class="profile flex items-center" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-          <img itemprop="image" src='data:image/svg+xml;base64,{}'>
+          <img itemprop="image" src='data:image/png;base64,{}'>
           <span class="author text-gray-600">
             <a itemprop="name" href="https://shawnhagler.org" class="font-semibold">Shawn Hagler</a>
             <p class="text-sm">{{date}}</p>
@@ -169,6 +169,6 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     frontmatter.date,
     tags_json,
     content_json,
-    base64::encode(profile_image_svg)
+    profile_image
   )
 }
