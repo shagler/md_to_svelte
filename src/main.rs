@@ -1,6 +1,8 @@
 use pulldown_cmark::{html, Parser};
 use regex::Regex;
 use serde::Deserialize;
+use std::fs::File;
+use std::io::{Write, Result};
 use std::path::Path;
 use walkdir::WalkDir;
 use serde_json::json;
@@ -9,6 +11,8 @@ use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Deserialize)]
 struct FrontMatter {
+  #[serde(default)]
+  slug: String,
   title: String,
   date: String,
   tags: Vec<String>,
@@ -18,6 +22,8 @@ fn main() {
   let input_dir = Path::new("data/articles");
   let output_dir = Path::new("src/routes/articles");
   let static_dir = Path::new("static/images/articles");
+
+  let mut articles = Vec::new();
   for entry in WalkDir::new(input_dir).into_iter().filter_map(|e| e.ok()) {
     if entry.path().extension().map_or(false, |ext| ext == "md") {
       let input_path = entry.path();
@@ -26,14 +32,19 @@ fn main() {
       let output_path = output_dir.join(file_stem).join("+page.svelte");
 
       let content = std::fs::read_to_string(input_path).unwrap();
-      let (frontmatter, markdown) = extract_frontmatter(&content);
+      let (mut frontmatter, markdown) = extract_frontmatter(&content);
+      frontmatter.slug = file_stem.to_string();
       let html_content = markdown_to_html(&markdown);
       let svelte_content = generate_svelte_component(&frontmatter, &html_content);
 
       std::fs::create_dir_all(output_path.parent().unwrap()).unwrap();
       std::fs::write(output_path, svelte_content).unwrap();
+
+      articles.push(frontmatter);
     }
   }
+
+  generate_article_data(&articles, output_dir).unwrap();
 
   let input_images = input_dir.join("images");
   if input_images.exists() {
@@ -72,6 +83,24 @@ fn markdown_to_html(markdown: &str) -> String {
   let mut html_output = String::new();
   html::push_html(&mut html_output, parser);
   html_output
+}
+
+fn generate_article_data(articles: &Vec<FrontMatter>, output_dir: &Path) -> std::io::Result<()> {
+  let output_path = output_dir.join("articleData.ts");
+  let mut file = File::create(output_path)?;
+
+  writeln!(file, "export const articles = [")?;
+  for article in articles {
+    writeln!(file, "  {{")?;
+    writeln!(file, "    slug: '{}',", article.slug)?;
+    writeln!(file, "    title: '{}',", article.title.replace("'", "\\'"))?;
+    writeln!(file, "    date: '{}',", article.date)?;
+    writeln!(file, "    tags: {:?}", article.tags)?;
+    writeln!(file, "  }},")?;
+  }
+  writeln!(file, "];")?;
+
+  Ok(())
 }
 
 fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> String {
