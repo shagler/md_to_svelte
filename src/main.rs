@@ -97,71 +97,297 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     }});
   </script>
 
-  <div class="reset-tw prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto">
-    <article>
-      <h1 class="title text-4xl font-bold mb-4">{{title}}</h1>
+  <div class="title">
+    <h1 class="title">{{title}}</h1>
 
-      <div class="meta mb-8">
-        <div class="profile flex items-center" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-          <img itemprop="image" src='data:image/png;base64,{}'>
-          <span class="author text-gray-600">
-            <a itemprop="name" href="https://shawnhagler.org" class="font-semibold">Shawn Hagler</a>
-            <p class="text-sm">{{date}}</p>
-          </span>
-        </div>
+    <div class="meta">
+      <div class="profile" itemprop="author" itemscope="" itemtype="http://schema.org/Person" style="height:48px">
+        <img itemprop="image" src='data:image/png;base64,{}'>
+        <span class="mono authors">
+          <a itemprop="name" href="https://shawnhagler.org">Shawn Hagler</a>
+          <p class="subtitle">{{date}}</p>
+        </span>
       </div>
+    </div>
+    <hr>
 
-      <hr class="border-t border-gray-300 mb-8">
-
-      <div class="content">
-        {{@html content}}
-      </div>
-    </article>
+    <div class="content">
+      {{@html content}}
+    </div>
   </div>
 
-  <style lang="postcss">
-    :global(.reset-tw *) {{
-      all: revert;
+  <style>
+    * {{
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      color: inherit;
+      text-decoration: inherit;
     }}
 
-    :global(h2) {{
-      @apply text-2xl font-semibold mt-8 mb-4;
+    html {{
+      background: var(--bg-0);
+      color: var(--text-0);
+      width: 100%;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: "kern" 1;
+      font-feature-settings: "liga" 1;
+      min-width: 100vw;
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
     }}
 
-    :global(h3) {{
-      @apply text-xl font-semibold mt-6 mb-3;
+    @media all and (min-width:640px) {{
+      html {{
+        font-size: 16.5px;
+      }}
     }}
 
-    :global(p) {{
-      @apply mb-4;
+    @media all and (min-width:720px) {{
+      html {{
+        font-size: 17px;
+      }}
     }}
 
-    :global(ul, ol) {{
-      @apply mb-4 pl-5;
+    @media all and (min-width:960px) {{
+      html {{
+        font-size: 18px;
+      }}
     }}
 
-    :global(li) {{
-      @apply mb-2;
+    body {{
+      background-color: #fffdf0;
+      max-width: 944px;
+      margin: 0 auto;
+      padding: 0 24px;
+      font-family: 'Berkely Mono', monospace;
     }}
 
-    :global(pre) {{
-      @apply bg-gray-100 p-4 rounded-md mb-4 overflow-x-auto;
+    header, h1, h2, h3, .sans {{
+      font-family: 'Berkely Mono', monospace;
+      font-size: 18px;
     }}
 
-    :global(code) {{
-      @apply font-mono text-sm;
+    code, .mono, summary {{
+      font-family: 'Berkely Mono', monospace;
+      font-weight: 500;
     }}
 
-    :global(table) {{
-      @apply w-full mb-4 border-collapse;
+    .img-right {{
+      float: right;
+      height: 300px;
+      padding-left: 2em;
     }}
 
-    :global(th, td) {{
-      @apply border border-gray-300 p-2;
+    body > header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 2em 0;
     }}
 
-    :global(img) {{
-      @apply max-w-full h-auto mb-4;
+    nav a {{
+      margin-left: 1.5em;
+      letter-spacing: 0.07em;
+      font-size: .9rem;
+    }}
+
+    .m {{
+      margin-left: 11%;
+      position: relative;
+    }}
+
+    .r {{
+      text-align: end;
+    }}
+
+    h1 {{
+      font-size: 6em;
+    }}
+
+    .red {{
+      color: #EF5350;
+    }}
+
+    article {{
+      margin: 0 0 1rem -24px;
+      padding-left: 20px;
+      position: relative;
+      border-left: solid 4px;
+    }}
+
+    article > a {{
+      letter-spacing: 0.05em;
+    }}
+
+    article > div {{
+      font-size: .9rem;
+    }}
+
+    article > time {{
+      color: var(--text-1);
+      font-size: .9rem;
+      display: block;
+      margin-bottom: 4px;
+    }}
+
+    article > div {{
+      color: var(--text-1);
+    }}
+
+    article a {{
+      color: var(--text-0);
+      position: relative;
+    }}
+
+    @media screen and (min-width: 1248px) {{
+      time {{
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: translateX(calc(-100% - 24px));
+      }}
+    }}
+
+    @media screen and (max-width: 1248px) {{
+      .shapes {{
+        display: none;
+      }}
+    }}
+
+    @media screen and (max-width: 1200px) {{
+      .m {{
+        margin-left: 0;
+      }}
+      .r {{
+        text-align: left;
+      }}
+
+      hgroup {{
+        margin-left: 0;
+        margin-right: 0;
+      }}
+
+      h1 {{
+        font-size: 4em;
+        line-height: 100%;
+      }}
+
+      h2 {{
+        font-size: 2em;
+        line-height: 100%;
+      }}
+    }}
+
+    body {{
+      font-family: 'Berkely Mono', monospace;
+    }}
+
+    code, pre {{
+      font-family: 'Berkely Mono', monospace;
+    }}
+
+    .header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }}
+
+    .header__logo {{
+      font-family: sans-serif;
+      font-size: 1.125rem;
+    }}
+
+    .header__nav-link {{
+      margin-left: 1.5rem;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+      font-family: sans-serif;
+    }}
+
+    .main {{
+      max-width: 56rem;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }}
+
+    h1 {{
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }}
+
+    .profile > img {{
+      display: inline;
+      object-fit: cover;
+      height: 48px;
+      width: 48px;
+      border-radius: 100%;
+      margin-right: 8px;
+      background: var(--bg-1);
+    }}
+
+    img:not(.profile img) {{
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }}
+
+    pre {{
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }}
+
+    .authors {{
+      position: absolute;
+      margin-top: 4px;
+      color: var(--text-1);
+      font-size: 16px;
+    }}
+
+    .subtitle {{
+      color: rgba(0, 0, 0, 66%);
+      font-size: 16px;
+    }}
+
+    hr {{
+      width: 164px;
+      border: 2.5px solid;
+      margin-top: 12px;
+      margin-bottom: 32px;
+    }}
+
+    h3, h2 {{
+      line-height: 24px;
+    }}
+
+    h2 {{
+      font-size: 1.2em;
+    }}
+
+    h1, h2, h3 {{
+      position: relative;
+      margin: 1.2rem 0 0 2rem 0;
+      margin-bottom: 12px;
+      margin-top: 12px;
+    }}
+
+    h2:before {{
+      content: '\#';
+      position: absolute;
+      margin-left: -19px;
+    }}
+
+    table {{
+      border-collapse: separate;
+      border-spacing: 10px;
+    }}
+
+    th, td {{
+      padding: 10px;
+      margin-bottom: 12px;
     }}
   </style>
   "#,
