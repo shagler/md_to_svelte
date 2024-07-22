@@ -7,7 +7,6 @@ use std::path::Path;
 use walkdir::WalkDir;
 use serde_json::json;
 use chrono::NaiveDate;
-use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Deserialize)]
 struct FrontMatter {
@@ -82,6 +81,17 @@ fn markdown_to_html(markdown: &str) -> String {
   let parser = Parser::new(markdown);
   let mut html_output = String::new();
   html::push_html(&mut html_output, parser);
+  let re = Regex::new(r#"<pre><code>([\s\S]*?)</code></pre>"#).unwrap();
+  html_output = re.replace_all(&html_output, |caps: &regex::Captures| {
+    let code = &caps[1];
+    let language = if code.starts_with("python") {
+      "language-python"
+    }
+    else {
+      "language-none"
+    };
+    format!("<pre class=\"code-block\"><code class=\"{}\">{}</code></pre>", language, code)
+  }).to_string();
   html_output
 }
 
@@ -114,6 +124,9 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
   format!(
     r#"<script>
     import {{ onMount }} from 'svelte';
+    import Prism from 'prismjs';
+    import 'prismjs/themes/prism-okaidia.css';
+    import 'prismjs/components/prism-python';
 
     export const title = '{}';
     export const date = '{}';
@@ -122,7 +135,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     let content = {};
 
     onMount(() => {{
-
+      Prism.highlightAll();
     }});
   </script>
 
@@ -267,6 +280,11 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     article a {{
       color: var(--text-0);
       position: relative;
+    }}
+
+    article h1 {{
+      font-size: 2rem;
+      margin-bottom: 12px;
     }}
 
     @media screen and (min-width: 1248px) {{
@@ -421,7 +439,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
   </style>
   "#,
     frontmatter.title,
-    frontmatter.date,
+    formatted_date,
     tags_json,
     content_json,
     profile_image
