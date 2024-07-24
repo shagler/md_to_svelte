@@ -1,4 +1,4 @@
-use pulldown_cmark::{html, Parser};
+use pulldown_cmark::{html, Parser, Options};
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
@@ -78,7 +78,9 @@ fn extract_frontmatter(content: &str) -> (FrontMatter, String) {
 }
 
 fn markdown_to_html(markdown: &str) -> String {
-  let parser = Parser::new(markdown);
+  let mut options = Options::empty();
+  options.insert(Options::ENABLE_TABLES);
+  let parser = Parser::new_ext(markdown, options);
   let mut html_output = String::new();
   html::push_html(&mut html_output, parser);
   let re = Regex::new(r#"<pre><code>([\s\S]*?)</code></pre>"#).unwrap();
@@ -285,6 +287,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     article h1 {{
       font-size: 2rem;
       margin-bottom: 12px;
+      font-weight: 700;
     }}
 
     @media screen and (min-width: 1248px) {{
@@ -421,7 +424,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
       margin-top: 12px;
     }}
 
-    h2:before {{
+    :not(.hgroup) h2:before {{
       content: '\#';
       position: absolute;
       margin-left: -19px;
