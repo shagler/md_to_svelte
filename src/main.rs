@@ -1,6 +1,6 @@
 use pulldown_cmark::{html, Parser, Options};
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{Write, Result};
 use std::path::Path;
@@ -8,48 +8,87 @@ use walkdir::WalkDir;
 use serde_json::json;
 use chrono::NaiveDate;
 
+struct ContentType {
+  input_dir: &'static str,
+  output_dir: &'static str,
+  static_dir: &'static str,
+  is_article: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Author {
+  name: String,
+  url: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct FrontMatter {
   #[serde(default)]
   slug: String,
   title: String,
+  #[serde(default)]
+  authors: Vec<Author>,
   date: String,
   tags: Vec<String>,
 }
 
 fn main() {
-  let input_dir = Path::new("data/articles");
-  let output_dir = Path::new("src/routes/articles");
-  let static_dir = Path::new("static/images/articles");
+  let content_types = vec![
+    ContentType {
+      input_dir: "data/articles",
+      output_dir: "src/routes/articles",
+      static_dir: "static/images/articles",
+      is_article: true,
+    },
+    ContentType {
+      input_dir: "data/projects",
+      output_dir: "src/routes/projects",
+      static_dir: "static/images/projects",
+      is_article: false,
+    },
+  ];
 
-  let mut articles = Vec::new();
-  for entry in WalkDir::new(input_dir).into_iter().filter_map(|e| e.ok()) {
-    if entry.path().extension().map_or(false, |ext| ext == "md") {
+  for content_type in content_types {
+    let frontmatters = process_content(&content_type);
+    generate_data(&frontmatters, Path::new(content_type.output_dir), content_type.is_article)
+      .unwrap_or_else(|e| eprintln!("Error generating data: {}", e));
+
+    let input_images = Path::new(content_type.input_dir).join("images");
+    if input_images.exists() {
+      std::fs::create_dir_all(content_type.static_dir)
+        .unwrap_or_else(|e| eprintln!("Error creating directory {}: {}", content_type.static_dir, e));
+      copy_dir_all(&input_images, Path::new(content_type.static_dir))
+        .unwrap_or_else(|e| eprintln!("Error copying images: {}", e));
+    }
+  }
+}
+
+fn process_content(content_type: &ContentType) -> Vec<FrontMatter> {
+  WalkDir::new(content_type.input_dir)
+    .into_iter()
+    .filter_map(|entry| entry.ok())
+    .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+    .map(|entry| {
       let input_path = entry.path();
-      let relative_path = input_path.strip_prefix(input_dir).unwrap();
+      let relative_path = input_path.strip_prefix(content_type.input_dir).unwrap();
       let file_stem = relative_path.file_stem().unwrap().to_str().unwrap();
-      let output_path = output_dir.join(file_stem).join("+page.svelte");
+      let output_path = Path::new(content_type.output_dir).join(file_stem).join("+page.svelte");
 
-      let content = std::fs::read_to_string(input_path).unwrap();
+      let content = std::fs::read_to_string(input_path)
+        .unwrap_or_else(|e| panic!("Error reading file {}: {}", input_path.display(), e));
       let (mut frontmatter, markdown) = extract_frontmatter(&content);
       frontmatter.slug = file_stem.to_string();
       let html_content = markdown_to_html(&markdown);
-      let svelte_content = generate_svelte_component(&frontmatter, &html_content);
+      let svelte_content = generate_svelte_component(&frontmatter, &html_content, content_type.is_article);
 
-      std::fs::create_dir_all(output_path.parent().unwrap()).unwrap();
-      std::fs::write(output_path, svelte_content).unwrap();
+      std::fs::create_dir_all(output_path.parent().unwrap())
+        .unwrap_or_else(|e| panic!("Error creating directory for {}: {}", output_path.display(), e));
+      std::fs::write(&output_path, svelte_content)
+        .unwrap_or_else(|e| panic!("Error writing to {}: {}", output_path.display(), e));
 
-      articles.push(frontmatter);
-    }
-  }
-
-  generate_article_data(&articles, output_dir).unwrap();
-
-  let input_images = input_dir.join("images");
-  if input_images.exists() {
-    std::fs::create_dir_all(static_dir).unwrap();
-    copy_dir_all(input_images, static_dir).unwrap();
-  }
+      frontmatter
+    })
+    .collect()
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
@@ -89,6 +128,9 @@ fn markdown_to_html(markdown: &str) -> String {
     let language = if code.starts_with("python") {
       "language-python"
     }
+    else if code.starts_with("vhdl") {
+      "language-vhdl"
+    }
     else {
       "language-none"
     };
@@ -97,17 +139,29 @@ fn markdown_to_html(markdown: &str) -> String {
   html_output
 }
 
-fn generate_article_data(articles: &Vec<FrontMatter>, output_dir: &Path) -> std::io::Result<()> {
-  let output_path = output_dir.join("articleData.ts");
+fn generate_data(frontmatters: &Vec<FrontMatter>, output_dir: &Path, is_article: bool) -> std::io::Result<()> {
+  let file_name = if is_article { "articleData.ts" } else { "projectData.ts" };
+  let output_path = output_dir.join(file_name);
   let mut file = File::create(output_path)?;
 
-  writeln!(file, "export const articles = [")?;
-  for article in articles {
+  let var_name = if is_article { "articles" } else { "projects" };
+  writeln!(file, "export const {} = [", var_name)?;
+  for frontmatter in frontmatters {
     writeln!(file, "  {{")?;
-    writeln!(file, "    slug: '{}',", article.slug)?;
-    writeln!(file, "    title: '{}',", article.title.replace("'", "\\'"))?;
-    writeln!(file, "    date: '{}',", article.date)?;
-    writeln!(file, "    tags: {:?}", article.tags)?;
+    writeln!(file, "    slug: '{}',", frontmatter.slug)?;
+    writeln!(file, "    title: '{}',", frontmatter.title.replace("'", "\\'"))?;
+    writeln!(file, "    authors: [")?;
+    for author in &frontmatter.authors {
+      write!(file, "      {{ name: '{}', ", author.name.replace("'", "\\'"))?;
+      if let Some(url) = &author.url {
+        writeln!(file, "url: '{}' }},", url.replace("'", "\\'"))?;
+      } else {
+        writeln!(file, "url: null }},")?;
+      }
+    }
+    writeln!(file, "    ],")?;
+    writeln!(file, "    date: '{}',", frontmatter.date)?;
+    writeln!(file, "    tags: {:?}", frontmatter.tags)?;
     writeln!(file, "  }},")?;
   }
   writeln!(file, "];")?;
@@ -115,12 +169,14 @@ fn generate_article_data(articles: &Vec<FrontMatter>, output_dir: &Path) -> std:
   Ok(())
 }
 
-fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> String {
+fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str, is_article: bool) -> String {
   let tags_json = serde_json::to_string(&frontmatter.tags).unwrap();
+  let authors_json = serde_json::to_string(&frontmatter.authors).unwrap();
   let date = NaiveDate::parse_from_str(&frontmatter.date, "%Y-%m-%d").unwrap();
   let formatted_date = date.format("%B %d, %Y").to_string();
 
-  let content_json = json!(html_content.replace("src=\"images/", "src=\"/images/articles/"));
+  let image_path = if is_article { "images/articles" } else { "images/projects" };
+  let content_json = json!(html_content.replace(&format!("src=\"images/"), &format!("src=\"/{}/", image_path)));
   let profile_image = include_str!("static/profile_image.svg");
 
   format!(
@@ -129,10 +185,12 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     import Prism from 'prismjs';
     import 'prismjs/themes/prism-okaidia.css';
     import 'prismjs/components/prism-python';
+    import 'prismjs/components/prism-vhdl';
 
     export const title = '{}';
     export const date = '{}';
     export const tags = {};
+    export const authors = {};
 
     let content = {};
 
@@ -145,10 +203,18 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     <h1 class="title">{{title}}</h1>
 
     <div class="meta">
-      <div class="profile" itemprop="author" itemscope="" itemtype="http://schema.org/Person" style="height:48px">
-        <img itemprop="image" src='data:image/png;base64,{}'>
+      <div class="profile" itemprop="author" itemtype="http://schema.org/Person" style="height:48px">
+        <!-- svelte-ignore a11y-img-redundant-alt -->
+        <img itemprop="image" src='data:image/png;base64,{profile_image}'>
         <span class="mono authors">
-          <a itemprop="name" href="https://shawnhagler.org">Shawn Hagler</a>
+          {{#each authors as author, index}}
+            {{#if author.url}}
+              <a itemprop="name" href="{{author.url}}">{{author.name}}</a>
+            {{:else}}
+              <span itemprop="name">{{author.name}}</span>
+            {{/if}}
+            {{#if index < authors.length - 1}}<span class="ampersand">&amp;</span>{{/if}}
+          {{/each}}
           <p class="subtitle">{{date}}</p>
         </span>
       </div>
@@ -161,6 +227,10 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
   </div>
 
   <style>
+    .authors .ampersand {{
+      display: inline-block;
+      padding-right: 0.5em;
+    }}
     * {{
       margin: 0;
       padding: 0;
@@ -444,7 +514,7 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str) -> S
     frontmatter.title,
     formatted_date,
     tags_json,
+    authors_json,
     content_json,
-    profile_image
   )
 }
