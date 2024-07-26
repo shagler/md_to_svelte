@@ -142,6 +142,12 @@ fn markdown_to_html(markdown: &str) -> String {
     else if code.starts_with("vhdl") {
       "language-vhdl"
     }
+    else if code.starts_with("cpp") {
+      "language-cpp"
+    }
+    else if code.starts_with("c") {
+      "language-c"
+    }
     else {
       "language-none"
     };
@@ -197,6 +203,8 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str, is_a
     import 'prismjs/themes/prism-okaidia.css';
     import 'prismjs/components/prism-python';
     import 'prismjs/components/prism-vhdl';
+    import 'prismjs/components/prism-c';
+    import 'prismjs/components/prism-cpp';
 
     export const title = '{}';
     export const date = '{}';
