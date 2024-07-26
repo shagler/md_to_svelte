@@ -122,6 +122,17 @@ fn markdown_to_html(markdown: &str) -> String {
   let parser = Parser::new_ext(markdown, options);
   let mut html_output = String::new();
   html::push_html(&mut html_output, parser);
+
+  let block_math_regex = Regex::new(r"<p>\$\$([\s\S]*?)\$\$</p>").unwrap();
+  html_output = block_math_regex.replace_all(&html_output, |caps: &regex::Captures| {
+    format!("\\[{}\\]", &caps[1])
+  }).to_string();
+
+  let inline_math_regex = Regex::new(r"\$([^\$\n]+?)\$").unwrap();
+  html_output = inline_math_regex.replace_all(&html_output, |caps: &regex::Captures| {
+    format!("\\({}\\)", &caps[1])
+  }).to_string();
+
   let re = Regex::new(r#"<pre><code>([\s\S]*?)</code></pre>"#).unwrap();
   html_output = re.replace_all(&html_output, |caps: &regex::Captures| {
     let code = &caps[1];
@@ -196,6 +207,31 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str, is_a
 
     onMount(() => {{
       Prism.highlightAll();
+
+      window.MathJax = {{
+        tex: {{
+          inlineMath: [['\\(', '\\)']],
+          displayMath: [['\\[', '\\]'], ['$$', '$$']],
+          processEscapes: true,
+          processEnvironments: true
+        }},
+        options: {{
+          skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+        }}
+      }};
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
+      script.async = true;
+      document.head.appendChild(script);
+
+      script.onload = () => {{
+        setTimeout(() => {{
+          MathJax.typesetPromise().catch((err) => {{
+            console.error('MathJax error:', err);
+          }});
+        }}, 100);
+      }};
     }});
   </script>
 
