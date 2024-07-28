@@ -133,6 +133,11 @@ fn markdown_to_html(markdown: &str) -> String {
     format!("\\({}\\)", &caps[1])
   }).to_string();
 
+  let list_regex = Regex::new(r"(<[ou]l>(?:\s*<li>.*?</li>\s*)+</[ou]l>)").unwrap();
+  html_output = list_regex.replace_all(&html_output, |caps: &regex::Captures| {
+    format!("<div style=\"margin-left: 2em;\">{}</div>", &caps[1])
+  }).to_string();
+
   let re = Regex::new(r#"<pre><code>([\s\S]*?)</code></pre>"#).unwrap();
   html_output = re.replace_all(&html_output, |caps: &regex::Captures| {
     let code = &caps[1];
