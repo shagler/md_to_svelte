@@ -318,16 +318,16 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str, is_a
       max-width: 944px;
       margin: 0 auto;
       padding: 0 24px;
-      font-family: 'Berkely Mono', monospace;
+      font-family: 'Berkeley Mono', monospace;
     }}
 
     header, h1, h2, h3, .sans {{
-      font-family: 'Berkely Mono', monospace;
+      font-family: 'Berkeley Mono', monospace;
       font-size: 18px;
     }}
 
     code, .mono, summary {{
-      font-family: 'Berkely Mono', monospace;
+      font-family: 'Berkeley Mono', monospace;
       font-weight: 500;
     }}
 
@@ -444,11 +444,11 @@ fn generate_svelte_component(frontmatter: &FrontMatter, html_content: &str, is_a
     }}
 
     body {{
-      font-family: 'Berkely Mono', monospace;
+      font-family: 'Berkeley Mono', monospace;
     }}
 
     code, pre {{
-      font-family: 'Berkely Mono', monospace;
+      font-family: 'Berkeley Mono', monospace;
     }}
 
     .header {{
