@@ -117,20 +117,28 @@ fn extract_frontmatter(content: &str) -> (FrontMatter, String) {
 }
 
 fn markdown_to_html(markdown: &str) -> String {
+  let latex_regex = Regex::new(r"(\$\$.*?\$\$|\$.*?\$)").unwrap();
+  let escaped_markdown = latex_regex.replace_all(markdown, |caps: &regex::Captures| {
+    let latex = &caps[1];
+    latex.replace("_", "\\_")
+  }).to_string();
+
   let mut options = Options::empty();
   options.insert(Options::ENABLE_TABLES);
-  let parser = Parser::new_ext(markdown, options);
+  let parser = Parser::new_ext(&escaped_markdown, options);
   let mut html_output = String::new();
   html::push_html(&mut html_output, parser);
 
-  let block_math_regex = Regex::new(r"<p>\$\$([\s\S]*?)\$\$</p>").unwrap();
+  let block_math_regex = Regex::new(r"(?s)<p>\$\$(.*?)\$\$</p>").unwrap();
   html_output = block_math_regex.replace_all(&html_output, |caps: &regex::Captures| {
-    format!("\\[{}\\]", &caps[1])
+    let math = &caps[1].trim().replace("*", "\\*");
+    format!("\\[{}\\]", math)
   }).to_string();
 
-  let inline_math_regex = Regex::new(r"\$([^\$\n]+?)\$").unwrap();
+  let inline_math_regex = Regex::new(r"\$([^$]+)\$").unwrap();
   html_output = inline_math_regex.replace_all(&html_output, |caps: &regex::Captures| {
-    format!("\\({}\\)", &caps[1])
+    let math = &caps[1].replace("*", "\\*");
+    format!("\\({}\\)", math)
   }).to_string();
 
   let list_regex = Regex::new(r"(<[ou]l>(?:\s*<li>.*?</li>\s*)+</[ou]l>)").unwrap();
